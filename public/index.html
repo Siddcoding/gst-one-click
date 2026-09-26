@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GST OneClick — M Fintech Solutions</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:        #071C11;
+    --surface:   #0D2B1A;
+    --card:      #112E1C;
+    --emerald:   #0D6E44;
+    --accent:    #10B981;
+    --gold:      #D4AF37;
+    --gold-lt:   #F0D060;
+    --text:      #E8F5EE;
+    --text-muted:#7FBFA0;
+    --border:    rgba(16,185,129,.18);
+    --danger:    #EF4444;
+    --radius:    14px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  /* ─── SPLASH ─────────────────────────────────────── */
+  #splash {
+    position: fixed; inset: 0; z-index: 9999;
+    background: radial-gradient(ellipse at 50% 40%, #0f3d23 0%, #071C11 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity .7s ease, visibility .7s ease;
+  }
+  #splash.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  /* Drifting finance symbols — used on splash + login screens */
+  .finance-float-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .finance-symbol {
+    position: absolute; bottom: -60px; opacity: 0;
+    font-family: 'Playfair Display', serif; font-weight: 700;
+    color: var(--accent); user-select: none;
+    animation: financeFloat linear infinite;
+  }
+  .finance-symbol.gold { color: var(--gold); }
+  @keyframes financeFloat {
+    0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: .22; }
+    50%  { transform: translateY(-50vh) translateX(20px) rotate(8deg); opacity: .28; }
+    90%  { opacity: .12; }
+    100% { transform: translateY(-105vh) translateX(-15px) rotate(-6deg); opacity: 0; }
+  }
+
+  .splash-logo-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; margin-bottom: 32px; }
+  .pulse-ring {
+    position: absolute; border-radius: 50%; border: 2px solid var(--accent);
+    animation: pulseRing 2s ease-out infinite;
+  }
+  .pulse-ring:nth-child(1) { width: 80px;  height: 80px;  animation-delay: 0s; }
+  .pulse-ring:nth-child(2) { width: 100px; height: 100px; animation-delay: .4s; opacity:.7; }
+  .pulse-ring:nth-child(3) { width: 120px; height: 120px; animation-delay: .8s; opacity:.4; }
+  @keyframes pulseRing {
+    0%   { transform: scale(.8);  opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+  .splash-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #0D6E44, #10B981);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 30px rgba(16,185,129,.5);
+    animation: iconFloat 3s ease-in-out infinite;
+  }
+  @keyframes iconFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .splash-icon svg { width: 32px; height: 32px; fill: white; }
+
+  .splash-title { font-family: 'Playfair Display', serif; font-size: 2.8rem; font-weight: 700; letter-spacing: -.5px; color: var(--text); margin-bottom: 6px; }
+  .splash-title span { color: var(--gold); }
+  .splash-sub { color: var(--text-muted); font-size: .9rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 40px; }
+
+  .splash-bar-wrap { width: 280px; height: 3px; background: rgba(255,255,255,.08); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+  .splash-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--emerald), var(--gold)); border-radius: 10px; animation: loadBar 2.6s cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes loadBar { to { width: 100%; } }
+
+  .splash-powered { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
+  .splash-powered span { color: var(--gold); font-weight: 600; }
+
+  /* ─── APP SHELL ───────────────────────────────────── */
+  #app { display: none; min-height: 100vh; }
+  #app.show { display: flex; }
+
+  /* ─── AUTH SCREEN ─────────────────────────────────── */
+  #auth-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; width: 100%; padding: 24px;
+    background: radial-gradient(ellipse at 60% 40%, #0f3d23 0%, #071C11 65%);
+    position: relative; overflow: hidden;
+  }
+  .auth-orb {
+    position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none; z-index: 0;
+  }
+  .auth-orb-1 {
+    width: 380px; height: 380px; background: radial-gradient(circle, rgba(16,185,129,.35), transparent 70%);
+    top: -80px; left: -100px; animation: orbFloat1 14s ease-in-out infinite;
+  }
+  .auth-orb-2 {
+    width: 320px; height: 320px; background: radial-gradient(circle, rgba(212,175,55,.22), transparent 70%);
+    bottom: -100px; right: -80px; animation: orbFloat2 17s ease-in-out infinite;
+  }
+  .auth-orb-3 {
+    width: 220px; height: 220px; background: radial-gradient(circle, rgba(16,185,129,.18), transparent 70%);
+    top: 55%; left: 65%; animation: orbFloat3 20s ease-in-out infinite;
+  }
+  @keyframes orbFloat1 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33% { transform: translate(60px,40px) scale(1.1); }
+    66% { transform: translate(20px,80px) scale(0.95); }
+  }
+  @keyframes orbFloat2 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-50px,-60px) scale(1.15); }
+  }
+  @keyframes orbFloat3 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-80px,30px) scale(1.2); }
+  }
+  .auth-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 48px 44px; width: 100%; max-width: 420px;
+    box-shadow: 0 32px 80px rgba(0,0,0,.5);
+    animation: slideUp .5s ease;
+    position: relative; z-index: 1;
+  }
+  @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:none} }
+  .auth-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+  .auth-logo-icon { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg,#0D6E44,#10B981); display:flex;align-items:center;justify-content:center; }
+  .auth-logo-icon svg { width:22px;height:22px;fill:white; }
+  .auth-logo-text { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700; }
+  .auth-logo-text span { color: var(--gold); }
+
+  .auth-tabs { display:flex; gap:4px; background:rgba(255,255,255,.04); border-radius:10px; padding:4px; margin-bottom:28px; }
+  .auth-tab { flex:1; padding:8px; text-align:center; border-radius:8px; cursor:pointer; font-size:.875rem; font-weight:500; color:var(--text-muted); transition:.2s; border:none;background:none; }
+  .auth-tab.active { background:var(--emerald); color:white; }
+
+  .field { margin-bottom:18px; }
+  .field label { display:block; font-size:.8rem; font-weight:500; color:var(--text-muted); margin-bottom:7px; letter-spacing:.5px; text-transform:uppercase; }
+  .field input { width:100%; padding:12px 16px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:.9rem; outline:none; transition:.2s; font-family:inherit; }
+  .field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(16,185,129,.12); }
+  .field input::placeholder { color:#3a6b52; }
+
+  .btn-primary { width:100%; padding:13px; background:linear-gradient(135deg,#0D6E44,#10B981); border:none; border-radius:10px; color:white; font-weight:600; font-size:.95rem; cursor:pointer; letter-spacing:.3px; transition:.2s; font-family:inherit; position:relative; overflow:hidden; }
+  .btn-primary::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent,rgba(255,255,255,.1),transparent); transform:translateX(-100%); transition:.4s; }
+  .btn-primary:hover::after { transform:translateX(100%); }
+  .btn-primary:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(13,110,68,.4); }
+  .auth-divider { text-align:center; color:var(--text-muted); font-size:.78rem; margin:16px 0; }
+  .auth-powered { text-align:center; margin-top:24px; font-size:.7rem; color:#3a6b52; letter-spacing:1px; text-transform:uppercase; }
+  .auth-powered span { color:var(--gold); }
+
+  /* ─── MAIN LAYOUT ─────────────────────────────────── */
+  #dashboard { display:flex; width:100%; min-height:100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 250px; flex-shrink:0; background: var(--surface);
+    border-right:1px solid var(--border); display:flex; flex-direction:column;
+    padding:0; position:sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .sidebar-brand { padding:28px 24px; border-bottom:1px solid var(--border); }
+  .brand-row { display:flex; align-items:center; gap:12px; }
+  .brand-icon { width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#0D6E44,#10B981);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  .brand-icon svg { width:20px;height:20px;fill:white; }
+  .brand-name { font-family:'Playfair Display',serif; font-size:1.05rem; font-weight:700; line-height:1.1; }
+  .brand-name span { color:var(--gold); }
+  .brand-tag { font-size:.6rem; color:var(--text-muted); letter-spacing:1.5px; text-transform:uppercase; margin-top:3px; }
+
+  .nav { padding:20px 12px; flex:1; }
+  .nav-section-label { font-size:.63rem; letter-spacing:1.8px; text-transform:uppercase; color:#3a6b52; padding:0 12px; margin:16px 0 8px; }
+  .nav-item {
+    display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:9px;
+    cursor:pointer; color:var(--text-muted); font-size:.875rem; font-weight:500;
+    transition:.18s; margin-bottom:2px; border:none; background:none; width:100%; text-align:left;
+  }
+  .nav-item svg { width:18px;height:18px;flex-shrink:0;opacity:.7; }
+  .nav-item:hover { background:rgba(16,185,129,.08); color:var(--text); }
+  .nav-item.active { background:rgba(16,185,129,.14); color:var(--accent); }
+  .nav-item.active svg { opacity:1; }
+
+  .sidebar-footer { padding:16px 12px; border-top:1px solid var(--border); }
+  .user-chip { display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(255,255,255,.03); }
+  .avatar { width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--emerald),var(--accent));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:white;flex-shrink:0; }
+  .user-info { flex:1;min-width:0; }
+  .user-name { font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .user-role { font-size:.68rem;color:var(--text-muted); }
+  .logout-btn { background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;border-radius:6px;transition:.15s; }
+  .logout-btn:hover { color:var(--danger); }
+  .logout-btn svg { width:15px;height:15px; }
+
+  /* MAIN */
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .topbar { padding:20px 32px; border-bottom:1px solid var(--border); display:flex;align-items:center;justify-content:space-between;background:var(--surface); position:sticky;top:0;z-index:10; }
+  .topbar-title { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:600; }
+  .topbar-right { display:flex;align-items:center;gap:12px; }
+  .badge-gstin { background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.3);color:var(--gold);font-size:.72rem;font-weight:600;letter-spacing:1px;padding:5px 12px;border-radius:20px; }
+
+  .content { padding:32px; flex:1; }
+
+  /* ─── SECTION PANELS ──────────────────────────────── */
+  .panel { display:none; animation:fadeIn .35s ease; }
+  .panel.active { display:block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+
+  /* ─── DASHBOARD PANEL ─────────────────────────────── */
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:28px; }
+  .stat-card {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:22px;
+    position:relative; overflow:hidden; transition:.25s;
+  }
+  .stat-card::before { content:''; position:absolute; top:0;right:0;width:80px;height:80px; border-radius:50%; background:var(--accent); opacity:.04; transform:translate(20px,-20px); }
+  .stat-card:hover { transform:translateY(-3px); border-color:rgba(16,185,129,.35); box-shadow:0 12px 30px rgba(0,0,0,.3); }
+  .stat-icon { width:38px;height:38px;border-radius:9px;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center;margin-bottom:14px; }
+  .stat-icon svg { width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:2; }
+  .stat-val { font-size:1.8rem;font-weight:700;letter-spacing:-1px;color:var(--text);margin-bottom:4px; }
+  .stat-label { font-size:.76rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px; }
+  .stat-delta { font-size:.72rem;color:var(--accent);margin-top:6px; }
+
+  .welcome-banner {
+    background: linear-gradient(135deg, #0D2B1A 0%, #0D6E44 100%);
+    border:1px solid rgba(16,185,129,.2); border-radius:var(--radius); padding:28px 32px;
+    margin-bottom:28px; display:flex; align-items:center; justify-content:space-between;
+    overflow:hidden; position:relative;
+  }
+  .welcome-banner::after { content:'GST'; position:absolute;right:120px;top:50%;transform:translateY(-50%);font-size:8rem;font-family:'Playfair Display',serif;font-weight:700;color:rgba(16,185,129,.06);pointer-events:none;user-select:none; }
+  .welcome-text h2 { font-family:'Playfair Display',serif;font-size:1.5rem;margin-bottom:6px; }
+  .welcome-text p { color:var(--text-muted);font-size:.87rem;line-height:1.6; }
+  .btn-convert { padding:11px 22px;background:var(--gold);color:#0A1A0A;font-weight:700;border:none;border-radius:9px;cursor:pointer;font-size:.875rem;transition:.2s;font-family:inherit;white-space:nowrap; }
+  .btn-convert:hover { background:var(--gold-lt);transform:translateY(-1px);box-shadow:0 6px 20px rgba(212,175,55,.3); }
+
+  /* ─── UPLOAD PANEL ────────────────────────────────── */
+  .upload-zone {
+    border:2px dashed var(--border); border-radius:18px; padding:60px 32px;
+    text-align:center; cursor:pointer; transition:.25s; position:relative;
+    background:rgba(13,110,68,.03); margin-bottom:24px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color:var(--accent); background:rgba(16,185,129,.05); }
+  .upload-zone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+  .upload-icon-wrap { width:70px;height:70px;border-radius:50%;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 20px; transition:.25s; }
+  .upload-zone:hover .upload-icon-wrap { background:rgba(16,185,129,.15); transform:scale(1.05); }
+  .upload-icon-wrap svg { width:32px;height:32px;stroke:var(--accent);fill:none;stroke-width:1.5; }
+  .upload-title { font-family:'Playfair Display',serif;font-size:1.3rem;margin-bottom:8px; }
+  .upload-sub { color:var(--text-muted);font-size:.85rem;margin-bottom:16px; }
+  .upload-tags { display:flex;gap:8px;justify-content:center;flex-wrap:wrap; }
+  .tag { padding:4px 12px;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.5px;border:1px solid; }
+  .tag-csv { background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.25);color:var(--accent); }
+  .tag-xls { background:rgba(212,175,55,.08);border-color:rgba(212,175,55,.25);color:var(--gold); }
+
+  .progress-wrap { display:none; margin-bottom:20px; }
+  .progress-wrap.show { display:block; animation:fadeIn .3s; }
+  .progress-label { display:flex;justify-content:space-between;font-size:.8rem;color:var(--text-muted);margin-bottom:8px; }
+  .progress-bar { height:6px;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden; }
+  .progress-fill { height:100%;background:linear-gradient(90deg,#0D6E44,#10B981,var(--gold));border-radius:10px;width:0;transition:width .4s ease; }
+
+  .result-card { display:none; background:var(--card);border:1px solid rgba(16,185,129,.3);border-radius:var(--radius);padding:24px; }
+  .result-card.show { display:block; animation:fadeIn .4s ease; }
+  .result-header { display:flex;align-items:center;gap:12px;margin-bottom:20px; }
+  .result-icon { width:40px;height:40px;border-radius:10px;background:rgba(16,185,129,.12);display:flex;align-items:center;justify-content:center; }
+  .result-icon svg { width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2; }
+  .result-title { font-size:1rem;font-weight:600; }
+  .result-sub { font-size:.78rem;color:var(--text-muted); }
+  .result-actions { display:flex;gap:10px;flex-wrap:wrap;margin-top:16px; }
+  .btn-dl { padding:10px 18px;border-radius:9px;font-weight:600;font-size:.82rem;cursor:pointer;transition:.2s;font-family:inherit;border:1px solid;display:flex;align-items:center;gap:7px; }
+  .btn-dl-primary { background:var(--accent);color:white;border-color:var(--accent); }
+  .btn-dl-primary:hover { background:#0ea873;transform:translateY(-1px); }
+  .btn-dl-ghost { background:transparent;color:var(--text-muted);border-color:var(--border); }
+  .btn-dl-ghost:hover { border-color:var(--accent);color:var(--accent); }
+  .btn-dl svg { width:15px;height:15px; }
+
+  /* JSON PREVIEW */
+  .json-preview { background:#060F0A;border:1px solid var(--border);border-radius:10px;padding:16px;font-family:'Courier New',monospace;font-size:.75rem;color:#7FBFA0;max-height:220px;overflow-y:auto;margin-top:16px;line-height:1.7; }
+  .json-key { color:var(--accent); }
+  .json-str { color:var(--gold); }
+  .json-num { color:#60A5FA; }
+
+  /* ─── HISTORY PANEL ───────────────────────────────── */
+  .history-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+  .history-header h2 { font-family:'Playfair Display',serif;font-size:1.2rem; }
+  .search-box { display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:9px 14px; }
+  .search-box svg { width:15px;height:15px;stroke:var(--text-muted);fill:none;stroke-width:2; }
+  .search-box input { background:none;border:none;color:var(--text);font-size:.83rem;outline:none;width:180px;font-family:inherit; }
+  .search-box input::placeholder { color:#3a6b52; }
+
+  .history-table { width:100%;border-collapse:collapse; }
+  .history-table th { text-align:left;padding:11px 16px;font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border); }
+  .history-table td { padding:13px 16px;font-size:.83rem;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle; }
+  .history-row { transition:.15s; }
+  .history-row:hover td { background:rgba(16,185,129,.04); }
+  .file-name-cell { display:flex;align-items:center;gap:10px; }
+  .file-icon { width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0; }
+  .file-icon.csv { background:rgba(16,185,129,.12);color:var(--accent);border:1px solid rgba(16,185,129,.2); }
+  .file-icon.xls { background:rgba(212,175,55,.12);color:var(--gold);border:1px solid rgba(212,175,55,.2); }
+  .status-pill { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600; }
+  .status-pill.success { background:rgba(16,185,129,.1);color:var(--accent); }
+  .status-pill.pending { background:rgba(212,175,55,.1);color:var(--gold); }
+  .status-dot { width:6px;height:6px;border-radius:50%;background:currentColor; }
+  .btn-icon { background:none;border:1px solid var(--border);border-radius:7px;padding:6px;cursor:pointer;color:var(--text-muted);transition:.15s; }
+  .btn-icon:hover { border-color:var(--accent);color:var(--accent); }
+  .btn-icon svg { width:14px;height:14px;display:block; }
+
+  .empty-state { text-align:center;padding:60px 24px;color:var(--text-muted); }
+  .empty-state svg { width:48px;height:48px;stroke:var(--border);fill:none;stroke-width:1.5;margin-bottom:16px; }
+  .empty-state p { font-size:.9rem; }
+
+  /* ─── SETTINGS PANEL ──────────────────────────────── */
+  .settings-grid { display:grid;gap:16px; }
+  .settings-card { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px; }
+  .settings-card h3 { font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:18px;display:flex;align-items:center;gap:8px; }
+  .settings-card h3 svg { width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2; }
+  .setting-row { display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.04); }
+  .setting-row:last-child { border:none; }
+  .setting-info p { font-size:.85rem;font-weight:500;margin-bottom:2px; }
+  .setting-info span { font-size:.75rem;color:var(--text-muted); }
+  .toggle { position:relative;width:42px;height:24px;flex-shrink:0; }
+  .toggle input { opacity:0;width:0;height:0; }
+  .toggle-slider { position:absolute;inset:0;border-radius:12px;background:rgba(255,255,255,.08);cursor:pointer;transition:.3s; }
+  .toggle-slider::before { content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:var(--text-muted);transition:.3s; }
+  .toggle input:checked + .toggle-slider { background:var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform:translateX(18px);background:white; }
+
+  /* ─── TOASTS ──────────────────────────────────────── */
+  #toast-container { position:fixed;bottom:28px;right:28px;z-index:9000;display:flex;flex-direction:column;gap:10px; }
+  .toast { padding:13px 18px;border-radius:11px;font-size:.83rem;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;animation:toastIn .3s ease;max-width:320px; }
+  .toast svg { width:16px;height:16px;flex-shrink:0; }
+  .toast.success { background:#0D2B1A;border:1px solid rgba(16,185,129,.3);color:var(--accent); }
+  .toast.error { background:#1A0D0D;border:1px solid rgba(239,68,68,.3);color:#EF4444; }
+  @keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:none} }
+
+  /* ─── SCROLLBAR ───────────────────────────────────── */
+  ::-webkit-scrollbar { width:6px;height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(16,185,129,.2);border-radius:10px; }
+
+  /* ─── RESPONSIVE ──────────────────────────────────── */
+  @media(max-width:768px) {
+    .sidebar { display:none; }
+    .content { padding:20px 16px; }
+    .topbar { padding:14px 16px; }
+    .stats-grid { grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── SPLASH ──────────────────────────────────────── -->
+<div id="splash">
+  <div class="finance-float-layer">
+    <span class="finance-symbol" style="left:8%; font-size:2.2rem; animation-duration:9s; animation-delay:0s;">₹</span>
+    <span class="finance-symbol gold" style="left:20%; font-size:1.4rem; animation-duration:11s; animation-delay:1.5s;">%</span>
+    <span class="finance-symbol" style="left:35%; font-size:1.8rem; animation-duration:8s; animation-delay:3s;">₹</span>
+    <span class="finance-symbol gold" style="left:50%; font-size:1.6rem; animation-duration:12s; animation-delay:.5s;">📄</span>
+    <span class="finance-symbol" style="left:65%; font-size:2rem; animation-duration:10s; animation-delay:2.5s;">₹</span>
+    <span class="finance-symbol gold" style="left:78%; font-size:1.3rem; animation-duration:9.5s; animation-delay:4s;">%</span>
+    <span class="finance-symbol" style="left:90%; font-size:1.7rem; animation-duration:13s; animation-delay:1s;">₹</span>
+  </div>
+  <div class="splash-logo-wrap">
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+    <div class="splash-icon">
+      <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+    </div>
+  </div>
+  <div class="splash-title">GST <span>OneClick</span></div>
+  <div class="splash-sub">Intelligent Tax Compliance Platform</div>
+  <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
+  <div class="splash-powered">Powered by <span>M Fintech Solutions</span></div>
+</div>
+
+<!-- ─── APP ─────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- AUTH -->
+  <div id="auth-screen">
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+    <div class="auth-orb auth-orb-3"></div>
+    <div class="finance-float-layer">
+      <span class="finance-symbol" style="left:12%; font-size:1.8rem; animation-duration:14s; animation-delay:0s;">₹</span>
+      <span class="finance-symbol gold" style="left:28%; font-size:1.2rem; animation-duration:17s; animation-delay:2s;">%</span>
+      <span class="finance-symbol" style="left:45%; font-size:1.5rem; animation-duration:13s; animation-delay:4.5s;">₹</span>
+      <span class="finance-symbol gold" style="left:60%; font-size:1.3rem; animation-duration:16s; animation-delay:1s;">📄</span>
+      <span class="finance-symbol" style="left:75%; font-size:1.7rem; animation-duration:15s; animation-delay:3.5s;">₹</span>
+      <span class="finance-symbol gold" style="left:88%; font-size:1.1rem; animation-duration:18s; animation-delay:6s;">%</span>
+    </div>
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </div>
+        <div>
+          <div class="auth-logo-text">GST <span>OneClick</span></div>
+          <div style="font-size:.65rem;color:var(--text-muted);letter-spacing:1px;">M FINTECH SOLUTIONS</div>
+        </div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">Sign In</button>
+        <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="login-form">
+        <div class="field"><label>Email Address</label><input type="email" id="login-email" placeholder="you@company.com"></div>
+        <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••"></div>
+        <button class="btn-primary" onclick="doLogin()">Sign In to Dashboard</button>
+        <div style="text-align:center;margin-top:14px;">
+          <button onclick="switchTab('forgot')" style="background:none;border:none;color:var(--accent);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;">Forgot your password?</button>
+        </div>
+        <div class="auth-divider">— Secure GST Compliant Platform —</div>
+      </div>
+
+      <!-- SIGNUP -->
+      <div id="signup-form" style="display:none;">
+        <div class="field"><label>Full Name</label><input type="text" id="su-name" placeholder="Rajesh Kumar"></div>
+        <div class="field"><label>Business Email</label><input type="email" id="su-email" placeholder="rajesh@company.com"></div>
+        <div class="field"><label>Password</label><input type="password" id="su-pass" placeholder="Min 8 chars, upper, lower, number, symbol"></div>
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:18px;">
+          <input type="checkbox" id="su-terms" style="margin-top:3px;accent-color:var(--accent);">
+          <label for="su-terms" style="font-size:.76rem;color:var(--text-muted);line-height:1.5;cursor:pointer;">
+            I agree to the <a href="/terms.html" target="_blank" style="color:var(--accent);">Terms of Service</a> and <a href="/privacy.html" target="_blank" style="color:var(--accent);">Privacy Policy</a>.
+          </label>
+        </div>
+        <button class="btn-primary" onclick="doSignup()">Create Account</button>
+      </div>
+
+      <!-- FORGOT PASSWORD -->
+      <div id="forgot-form" style="display:none;">
+        <p style="font-size:.83rem;color:var(--text-muted);margin-bottom:18px;line-height:1.5;">Enter your account email and we'll send a link to reset your password.</p>
+        <div class="field"><label>Email Address</label><input type="email" id="forgot-email" placeholder="you@company.com"></div>
+        <button class="btn-primary" onclick="doForgotPassword()">Send Reset Link</button>
+        <div style="text-align:center;margin-top:14px;">
+          <button onclick="switchTab('login')" style="background:none;border:none;color:var(--text-muted);font-size:.8rem;cursor:pointer;font-family:inherit;">← Back to Sign In</button>
+        </div>
+      </div>
+
+      <!-- RESET PASSWORD (arrived via emailed link) -->
+      <div id="reset-form" style="display:none;">
+        <p style="font-size:.83rem;color:var(--text-muted);margin-bottom:18px;line-height:1.5;">Choose a new password for your account.</p>
+        <div class="field"><label>New Password</label><input type="password" id="reset-new-pass" placeholder="Min 8 chars, upper, lower, number, symbol"></div>
+        <button class="btn-primary" onclick="doResetPassword()">Set New Password</button>
+      </div>
+
+      <!-- EMAIL VERIFICATION LANDING (arrived via emailed link) -->
+      <div id="verify-form" style="display:none; text-align:center;">
+        <p id="verify-status-msg" style="font-size:.9rem;color:var(--text-muted);margin-bottom:18px;">Verifying your email…</p>
+        <button class="btn-primary" onclick="switchTab('login')">Go to Sign In</button>
+      </div>
+
+      <div class="auth-powered">Powered by <span>M Fintech Solutions</span></div>
+      <div style="text-align:center;margin-top:10px;">
+        <a href="/terms.html" target="_blank" style="font-size:.68rem;color:#3a6b52;text-decoration:none;">Terms</a>
+        <span style="color:#3a6b52;font-size:.68rem;"> · </span>
+        <a href="/privacy.html" target="_blank" style="font-size:.68rem;color:#3a6b52;text-decoration:none;">Privacy</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" style="display:none;">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-row">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+          </div>
+          <div>
+            <div class="brand-name">GST <span>OneClick</span></div>
+            <div class="brand-tag">M Fintech Solutions</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <div class="nav-section-label">Main</div>
+        <button class="nav-item active" onclick="showPanel('overview')">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Overview
+        </button>
+        <button class="nav-item" onclick="showPanel('convert')">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M4 16l4-4-4-4M12 20h8M12 4h8"/></svg>
+          Convert Files
+        </button>
+        <button class="nav-item" onclick="showPanel('history')">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Filing History
+        </button>
+        <div class="nav-section-label">Account</div>
+        <button class="nav-item" onclick="showPanel('settings')">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Settings
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="avatar" id="sidebar-avatar">RK</div>
+          <div class="user-info">
+            <div class="user-name" id="sidebar-name">Rajesh Kumar</div>
+            <div class="user-role" id="sidebar-account-id">GST Registered</div>
+          </div>
+          <button class="logout-btn" onclick="doLogout()" title="Logout">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <div class="topbar-title" id="topbar-title">Overview</div>
+        <div class="topbar-right">
+          <span class="badge-gstin" id="topbar-gstin">GSTIN: —</span>
+        </div>
+      </div>
+
+      <div class="content">
+
+        <!-- OVERVIEW PANEL -->
+        <div class="panel active" id="panel-overview">
+          <div id="verify-banner" style="display:none;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <span style="font-size:.83rem;color:var(--gold);">⚠ Please verify your email address to secure your account.</span>
+            <button onclick="resendVerification()" style="background:none;border:1px solid var(--gold);color:var(--gold);padding:6px 14px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Resend Verification Email</button>
+          </div>
+          <div class="welcome-banner">
+            <div class="welcome-text">
+              <h2>Good day, <span id="welcome-name">User</span> 👋</h2>
+              <p>Your GST compliance dashboard is ready.<br>Convert invoices, map columns and submit with one click.</p>
+            </div>
+            <button class="btn-convert" onclick="showPanel('convert')">+ New Conversion</button>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="stat-val" id="stat-files">0</div>
+              <div class="stat-label">Files Converted</div>
+              <div class="stat-delta">↑ This month</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/></svg></div>
+              <div class="stat-val" id="stat-success">0</div>
+              <div class="stat-label">Successful</div>
+              <div class="stat-delta" style="color:var(--gold);">GST Ready</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+              <div class="stat-val" id="stat-invoices">0</div>
+              <div class="stat-label">Total Invoices</div>
+              <div class="stat-delta">↑ Across all files</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+              <div class="stat-val">GSTR-1</div>
+              <div class="stat-label">Schema Type</div>
+              <div class="stat-delta" style="color:var(--gold);">Portal Compatible</div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <h3 style="font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Recent Activity</h3>
+              <button onclick="showPanel('history')" style="background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;font-family:inherit;">View All →</button>
+            </div>
+            <div id="recent-activity">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24"><path d="M4 16l4-4-4-4M12 20h8M12 4h8"/></svg>
+                <p>No conversions yet. Upload your first file to get started.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONVERT PANEL -->
+        <div class="panel" id="panel-convert">
+          <div class="upload-zone" id="upload-zone">
+            <input type="file" id="file-input" accept=".csv,.xlsx,.xls" onchange="handleFile(this.files[0])">
+            <div class="upload-icon-wrap">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="upload-title">Drop your GSTR-1 invoice export here</div>
+            <div class="upload-sub">Standard GST portal "b2b, sez, de" format — converts automatically, no setup needed</div>
+            <div class="upload-tags">
+              <span class="tag tag-csv">CSV</span>
+              <span class="tag tag-xls">XLSX</span>
+              <span class="tag tag-xls">XLS</span>
+            </div>
+          </div>
+
+          <div class="progress-wrap" id="progress-wrap">
+            <div class="progress-label"><span id="progress-msg">Processing file…</span><span id="progress-pct">0%</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          </div>
+
+          <div class="result-card" id="result-card">
+            <div class="result-header">
+              <div class="result-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div>
+              <div>
+                <div class="result-title">Conversion Successful</div>
+                <div class="result-sub" id="result-sub">File converted to GST-compatible JSON</div>
+              </div>
+            </div>
+            <div class="json-preview" id="json-preview"></div>
+            <div class="result-actions">
+              <button class="btn-dl btn-dl-primary" onclick="downloadJSON()">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download JSON
+              </button>
+              <button class="btn-dl btn-dl-ghost" onclick="copyJSON()">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                Copy JSON
+              </button>
+              <button class="btn-dl btn-dl-ghost" onclick="openGSTPortal()">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                Open GST Portal
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTORY PANEL -->
+        <div class="panel" id="panel-history">
+          <div class="history-header">
+            <h2>Filing History</h2>
+            <div class="search-box">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" placeholder="Search files…" oninput="filterHistory(this.value)">
+            </div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>File Name</th>
+                  <th>Date</th>
+                  <th>Invoices</th>
+                  <th>GST Period</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="history-body">
+                <tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><p>No conversion history yet.</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SETTINGS PANEL -->
+        <div class="panel" id="panel-settings">
+          <div class="settings-grid">
+            <div class="settings-card">
+              <h3><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg> Account Details</h3>
+              <div class="setting-row">
+                <div class="setting-info"><p>Account ID</p><span id="acc-id-value">—</span></div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info"><p>Member Since</p><span id="acc-member-since">—</span></div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info"><p>Last Login</p><span id="acc-last-login">—</span></div>
+              </div>
+            </div>
+            <div class="settings-card">
+              <h3><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Business Profile</h3>
+              <div class="field"><label>Business Name</label><input type="text" id="set-biz" placeholder="Your Company Pvt Ltd"></div>
+              <div class="field"><label>GSTIN</label><input type="text" id="set-gstin" placeholder="22AAAAA0000A1Z5"></div>
+              <div class="field"><label>State Code</label><input type="text" id="set-state" placeholder="22 — Chhattisgarh"></div>
+              <button class="btn-primary" style="width:auto;padding:10px 24px;" onclick="saveSettings()">Save Profile</button>
+            </div>
+            <div class="settings-card">
+              <h3><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> GST Preferences</h3>
+              <div class="setting-row">
+                <div class="setting-info"><p>Auto-validate GSTIN</p><span>Check supplier GSTINs on convert</span></div>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info"><p>Include Nil-rated Invoices</p><span>Include zero-tax entries in output</span></div>
+                <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info"><p>Auto-save to History</p><span>Save every conversion automatically</span></div>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info"><p>Email Confirmation</p><span>Receive JSON by email after convert</span></div>
+                <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /dashboard -->
+
+</div><!-- /app -->
+
+<div id="toast-container"></div>
+
+<script>
+// ─── CONFIG ─────────────────────────────────────────────
+// Frontend is served BY the same backend server, so a relative path works
+// both on localhost and once deployed — no need to edit this.
+const API_BASE = '/api';
+
+// ─── STATE ─────────────────────────────────────────────
+let authToken = localStorage.getItem('gst_token') || null;
+let currentUser = JSON.parse(localStorage.getItem('gst_user') || 'null');
+let historyCache = [];
+let currentJSON = null;
+let currentFile = null;
+
+// ─── API HELPER ─────────────────────────────────────────
+const STRONG_PASSWORD_MSG = 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.';
+function isStrongPassword(pw) {
+  return typeof pw === 'string' && pw.length >= 8 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw);
+}
+
+async function api(path, { method = 'GET', body, isFormData = false } = {}) {
+  const headers = {};
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  if (!isFormData && body) headers['Content-Type'] = 'application/json';
+
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
+    });
+  } catch (err) {
+    throw new Error('Could not reach the server. Check your connection or try again shortly.');
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 401) { doLogout(true); }
+    const err = new Error(data.error || 'Something went wrong.');
+    err.details = data;
+    throw err;
+  }
+  return data;
+}
+
+// ─── SPLASH ────────────────────────────────────────────
+window.addEventListener('load', () => {
+  setTimeout(async () => {
+    document.getElementById('splash').classList.add('hide');
+    document.getElementById('app').classList.add('show');
+    document.getElementById('app').style.display = 'flex';
+
+    // If this page load came from an emailed verify/reset link, handle that first.
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    if (window.location.pathname === '/verify-email' && token) {
+      showAuthOnly('verify');
+      handleVerifyEmail(token);
+      return;
+    }
+    if (window.location.pathname === '/reset-password' && token) {
+      showAuthOnly('reset');
+      window.__resetToken = token;
+      return;
+    }
+
+    if (authToken && currentUser) {
+      try {
+        const { user } = await api('/auth/me');
+        currentUser = user;
+        localStorage.setItem('gst_user', JSON.stringify(user));
+        showDashboard();
+      } catch (err) {
+        doLogout(true);
+      }
+    }
+  }, 3000);
+});
+
+function showAuthOnly(screen) {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.querySelector('.auth-tabs').style.display = 'none';
+  switchTab(screen);
+}
+
+// ─── AUTH ───────────────────────────────────────────────
+function switchTab(tab) {
+  const tabs = document.querySelector('.auth-tabs');
+  const isCoreTab = tab === 'login' || tab === 'signup';
+  tabs.style.display = isCoreTab ? 'flex' : 'none';
+  if (isCoreTab) {
+    document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'?0:1)===i));
+  }
+  ['login-form','signup-form','forgot-form','reset-form','verify-form'].forEach(id => {
+    document.getElementById(id).style.display = (id === `${tab}-form`) ? 'block' : 'none';
+  });
+}
+
+async function doSignup() {
+  const name = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const password = document.getElementById('su-pass').value;
+  const agreedToTerms = document.getElementById('su-terms').checked;
+
+  if (!name || !email || !password) return toast('Please fill all required fields.','error');
+  if (!isStrongPassword(password)) return toast(STRONG_PASSWORD_MSG,'error');
+  if (!agreedToTerms) return toast('Please agree to the Terms of Service and Privacy Policy.','error');
+
+  try {
+    const { token, user } = await api('/auth/signup', { method: 'POST', body: { name, email, password } });
+    authToken = token; currentUser = user;
+    localStorage.setItem('gst_token', token);
+    localStorage.setItem('gst_user', JSON.stringify(user));
+    toast('Account created! Add your GSTIN in Settings before converting files.', 'success');
+    showDashboard();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-pass').value;
+  if (!email || !password) return toast('Please enter email and password.','error');
+
+  try {
+    const { token, user } = await api('/auth/login', { method: 'POST', body: { email, password } });
+    authToken = token; currentUser = user;
+    localStorage.setItem('gst_token', token);
+    localStorage.setItem('gst_user', JSON.stringify(user));
+    showDashboard();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return toast('Please enter your email.','error');
+  try {
+    const { message } = await api('/auth/forgot-password', { method: 'POST', body: { email } });
+    toast(message, 'success');
+    switchTab('login');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function doResetPassword() {
+  const newPassword = document.getElementById('reset-new-pass').value;
+  if (!isStrongPassword(newPassword)) return toast(STRONG_PASSWORD_MSG,'error');
+  if (!window.__resetToken) return toast('Reset link is missing or invalid.','error');
+
+  try {
+    const { message } = await api('/auth/reset-password', { method: 'POST', body: { token: window.__resetToken, newPassword } });
+    toast(message, 'success');
+    window.history.replaceState({}, '', '/');
+    switchTab('login');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function handleVerifyEmail(token) {
+  const statusEl = document.getElementById('verify-status-msg');
+  try {
+    const { message } = await api('/auth/verify-email', { method: 'POST', body: { token } });
+    statusEl.textContent = message || 'Email verified successfully!';
+    statusEl.style.color = 'var(--accent)';
+    window.history.replaceState({}, '', '/');
+  } catch (err) {
+    statusEl.textContent = err.message;
+    statusEl.style.color = '#EF4444';
+  }
+}
+
+async function resendVerification() {
+  try {
+    const { message } = await api('/auth/resend-verification', { method: 'POST' });
+    toast(message, 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+
+function doLogout(silent) {
+  localStorage.removeItem('gst_token');
+  localStorage.removeItem('gst_user');
+  authToken = null; currentUser = null;
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+  if (!silent) toast('Signed out successfully.','success');
+}
+
+async function showDashboard() {
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('dashboard').style.display='flex';
+  document.getElementById('sidebar-name').textContent = currentUser.name;
+  document.getElementById('sidebar-avatar').textContent = currentUser.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('sidebar-account-id').textContent = currentUser.accountId || 'GST Registered';
+  document.getElementById('topbar-gstin').textContent = 'GSTIN: ' + (currentUser.gstin || '—');
+  document.getElementById('welcome-name').textContent = currentUser.name.split(' ')[0];
+  document.getElementById('set-gstin').value = currentUser.gstin || '';
+  document.getElementById('set-biz').value = currentUser.businessName || '';
+  document.getElementById('set-state').value = currentUser.stateCode || '';
+  document.getElementById('verify-banner').style.display = currentUser.emailVerified ? 'none' : 'flex';
+
+  document.getElementById('acc-id-value').textContent = currentUser.accountId || '—';
+  document.getElementById('acc-member-since').textContent = currentUser.memberSince
+    ? new Date(currentUser.memberSince + 'Z').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+  document.getElementById('acc-last-login').textContent = currentUser.lastLoginAt
+    ? `${new Date(currentUser.lastLoginAt + 'Z').toLocaleString('en-IN')} · ${currentUser.lastLoginDevice || 'Unknown device'} · ${currentUser.lastLoginIp || 'unknown IP'}`
+    : 'This is your first login';
+
+  await loadHistory();
+}
+
+// ─── PANELS ────────────────────────────────────────────
+const panelTitles = { overview:'Overview', convert:'Convert Files', history:'Filing History', settings:'Settings' };
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item')[['overview','convert','history','settings'].indexOf(name)].classList.add('active');
+  document.getElementById('topbar-title').textContent = panelTitles[name];
+}
+
+// ─── FILE HANDLING ──────────────────────────────────────
+const dropZone = document.getElementById('upload-zone');
+dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e=>{e.preventDefault();dropZone.classList.remove('drag');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+
+async function handleFile(file) {
+  if (!file) return;
+  currentFile = file;
+  document.getElementById('result-card').classList.remove('show');
+
+  const pw = document.getElementById('progress-wrap');
+  pw.classList.add('show');
+  const fill = document.getElementById('progress-fill');
+  const msg = document.getElementById('progress-msg');
+  const pctEl = document.getElementById('progress-pct');
+  const steps = ['Uploading file…','Reading GST invoice format…','Validating GSTINs…','Calculating IGST/CGST/SGST…','Saving to history…'];
+  let pct = 0, si = 0;
+  const iv = setInterval(() => {
+    pct = Math.min(pct + Math.random()*16, 92);
+    fill.style.width = pct + '%';
+    pctEl.textContent = Math.round(pct) + '%';
+    if (si < steps.length && pct > si*18) { msg.textContent = steps[si++]; }
+  }, 200);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const result = await api('/convert/auto', { method: 'POST', body: formData, isFormData: true });
+    clearInterval(iv);
+    fill.style.width = '100%'; pctEl.textContent = '100%'; msg.textContent = 'Done!';
+    currentJSON = result.json;
+    showResult(result.invoiceCount, result.fileName);
+    await loadHistory();
+  } catch (err) {
+    clearInterval(iv);
+    pw.classList.remove('show');
+    toast(err.message, 'error');
+    if (err.details?.invalidRows?.length) {
+      const rowList = err.details.invalidRows.map(r => `Row ${r.row}: "${r.gstin}"`).join(', ');
+      toast(`Invalid GSTIN(s) — ${rowList}`, 'error');
+    }
+  }
+}
+
+function showResult(count, fileName) {
+  const rc = document.getElementById('result-card');
+  rc.classList.add('show');
+  document.getElementById('result-sub').textContent = `${count} invoice(s) → GSTR-1 compatible JSON • ${fileName || currentFile?.name || 'file'}`;
+  const preview = JSON.stringify(currentJSON, null, 2)
+    .replace(/("[\w_]+")\s*:/g,'<span class="json-key">$1</span>:')
+    .replace(/:\s*(".*?")/g,': <span class="json-str">$1</span>')
+    .replace(/:\s*(\d+\.?\d*)/g,': <span class="json-num">$1</span>');
+  document.getElementById('json-preview').innerHTML = preview;
+  toast('JSON generated and saved to history!','success');
+}
+
+function downloadJSON() {
+  if (!currentJSON) return;
+  const blob = new Blob([JSON.stringify(currentJSON,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `GSTR1_${currentJSON.fp}_${Date.now()}.json`;
+  a.click();
+  toast('JSON downloaded!','success');
+}
+
+function copyJSON() {
+  if (!currentJSON) return;
+  navigator.clipboard.writeText(JSON.stringify(currentJSON,null,2)).then(()=>toast('Copied to clipboard!','success'));
+}
+
+function openGSTPortal() {
+  window.open('https://www.gst.gov.in','_blank');
+  toast('Opening GST portal in a new tab…','success');
+}
+
+// ─── HISTORY (from server) ─────────────────────────────
+async function loadHistory() {
+  try {
+    const { history, stats } = await api('/history');
+    historyCache = history;
+    document.getElementById('stat-files').textContent = stats.totalFiles;
+    document.getElementById('stat-success').textContent = stats.successCount;
+    document.getElementById('stat-invoices').textContent = stats.totalInvoices;
+    renderHistory();
+    renderRecent();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function renderHistory(filter='') {
+  const tbody = document.getElementById('history-body');
+  const filtered = historyCache.filter(h=>!filter||h.fileName.toLowerCase().includes(filter.toLowerCase()));
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><p>No matching records found.</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map((h,i) => `
+    <tr class="history-row" style="animation:slideUp .3s ease ${i*.05}s both;">
+      <td><div class="file-name-cell">
+        <div class="file-icon ${h.fileExt==='csv'?'csv':'xls'}">${h.fileExt.toUpperCase()}</div>
+        <span>${h.fileName}</span>
+      </div></td>
+      <td style="color:var(--text-muted)">${new Date(h.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td>${h.invoiceCount}</td>
+      <td>${h.gstPeriod}</td>
+      <td><span class="status-pill ${h.status}"><span class="status-dot"></span>${h.status==='success'?'Completed':'Pending'}</span></td>
+      <td><div style="display:flex;gap:6px;">
+        <button class="btn-icon" onclick="reDownload(${h.id})" title="Download JSON">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="btn-icon" onclick="deleteEntry(${h.id})" title="Delete">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function renderRecent() {
+  const el = document.getElementById('recent-activity');
+  const recent = historyCache.slice(0,4);
+  if (!recent.length) { el.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M4 16l4-4-4-4M12 20h8M12 4h8"/></svg><p>No conversions yet. Upload your first file to get started.</p></div>'; return; }
+  el.innerHTML = recent.map(h=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+      <div class="file-icon ${h.fileExt==='csv'?'csv':'xls'}" style="flex-shrink:0">${h.fileExt.toUpperCase()}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:.83rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.fileName}</div><div style="font-size:.72rem;color:var(--text-muted)">${h.invoiceCount} invoices · ${new Date(h.createdAt).toLocaleDateString('en-IN')}</div></div>
+      <span class="status-pill success"><span class="status-dot"></span>Done</span>
+    </div>`).join('');
+}
+
+function filterHistory(val) { renderHistory(val); }
+
+async function reDownload(id) {
+  try {
+    const entry = await api(`/history/${id}`);
+    const blob = new Blob([JSON.stringify(entry.json,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `GSTR1_${entry.gstPeriod}_${entry.id}.json`;
+    a.click();
+    toast('Downloading JSON…','success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function deleteEntry(id) {
+  try {
+    await api(`/history/${id}`, { method: 'DELETE' });
+    toast('Entry deleted.','success');
+    await loadHistory();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ─── SETTINGS ──────────────────────────────────────────
+async function saveSettings() {
+  const gstin = document.getElementById('set-gstin').value.trim().toUpperCase();
+  const businessName = document.getElementById('set-biz').value.trim();
+  const stateCode = document.getElementById('set-state').value.trim();
+  try {
+    const { user } = await api('/auth/me', { method: 'PUT', body: { gstin, businessName, stateCode } });
+    currentUser = user;
+    localStorage.setItem('gst_user', JSON.stringify(user));
+    document.getElementById('topbar-gstin').textContent = 'GSTIN: ' + (user.gstin || '—');
+    toast('Settings saved!','success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ─── TOASTS ────────────────────────────────────────────
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">${type==='success'?'<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>':'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}</svg>${msg}`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(), 3800);
+}
+</script>
+</body>
+</html>
